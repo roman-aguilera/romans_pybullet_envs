@@ -13,12 +13,12 @@ pip install -e .
 
 
 
-The exact environments that I created myself are found below
+The exact environments that I created myself are:
 
-The 8-link octopus environment:
+* The 8-link octopus environment:
 https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_env.py
 
-The 8-link octopus environment (with joint locking):
+*The 8-link octopus environment (with joint locking):
 https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_lockedjoints_env.py
 
 
