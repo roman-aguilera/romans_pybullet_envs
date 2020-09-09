@@ -10,12 +10,21 @@ def register(id, *args, **kvargs):
 
 
 # -----------octopus------------
-
+#env_instance = gym.make('OctopusArm2DBulletEnv-v0', renders=True)
 register(
-    id='OctopusArm2DBulletEnv-v0', #env_instance = gym.make('OctopusArm2DBulletEnv-v0', renders=True)
+    id='OctopusArm2DBulletEnv-v0',
     entry_point='pybullet_envs.octopus_env:OctopusEnv',
-    max_episode_steps=1000*10,
-    reward_threshold=20000.0*10,
+    max_episode_steps=1000*100, #maximum amount of timesteps in one episode
+    reward_threshold=20000.0*1000,
+)
+
+
+#env_instance = gym.make('OctopusArmLockedJoints2DBulletEnv-v0', renders=True)
+register(
+    id='OctopusArmLockedJoints2DBulletEnv-v0', 
+    entry_point='pybullet_envs.octopus_lockedjoints_env:OctopusEnv',
+    max_episode_steps=1000*100,
+    reward_threshold=20000.0*1000,
 )
 
 
