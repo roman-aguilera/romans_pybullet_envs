@@ -1,9 +1,6 @@
 # Roman's Pybullet Gym Environments
 
-This is where I keep my custom gym environments. 
-
-
-To use my custom gym environments, enter the following commands from the terminal:
+This is where I keep my custom OpenAI Gym environments. To use them, enter the following commands from the terminal:
 
 ```
 cd <path/to/where/you/want/to/store/these/files>
