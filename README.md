@@ -1,4 +1,4 @@
-# romans_pybullet_gym_envs
+# Roman's Pybullet Gym Environments
 
 This is where I keep my custom gym environments. It is amodified version of pybullet_envs. https://github.com/bulletphysics/bullet3/tree/master/examples/pybullet/gym/pybullet_envs 
 
