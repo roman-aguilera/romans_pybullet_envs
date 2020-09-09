@@ -23,7 +23,7 @@ https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_locke
 
 
 
-Credtis:
+# Credtis:
 This repository is a modified version of pybullet_envs: https://github.com/bulletphysics/bullet3/tree/master/examples/pybullet/gym/pybullet_envs 
 The Pybullet Gymperium code was a helpful reference when designing these environments: https://github.com/benelot/pybullet-gym
 
