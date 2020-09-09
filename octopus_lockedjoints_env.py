@@ -20,7 +20,7 @@ try:
 except:
   pass
 
-#call this env with env_instance = gym.make("OctopusArm2DBulletEnv-v0", render=True)
+#call this env with env_instance = gym.make("OctopusArmLockedJoints2DBulletEnv-v0", render=True)
 class OctopusEnv(gym.Env):
   """
 	Base class for Bullet physics simulation loading MJCF (MuJoCo .xml) environments in a Scene.
@@ -30,7 +30,7 @@ class OctopusEnv(gym.Env):
 
   metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
-  def __init__(self, render=False, number_of_links_urdf=8, number_of_joints_urdf=8): #def __init__(self, render=False):
+  def __init__(self, render=False, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3): #def __init__(self, render=False):
     self.scene = None
     self.physicsClientId = -1 #indicates that we have not started a pybullet simulation, this number is changed when we do start a simulation
     self.ownsPhysicsClient = 0 #indicates that we have not started a pybullet simulation, this is changed to True when we do start a simulation (in the reset function)
@@ -49,6 +49,10 @@ class OctopusEnv(gym.Env):
     self.number_of_links_urdf = number_of_links_urdf
     self.number_of_joints_urdf = number_of_joints_urdf
     self.number_of_torques_urdf  = number_of_links_urdf
+    self.number_of_free_joints = number_of_free_joints
+    
+    
+    
     self.target_x = 0  # this is 0 in 2D case
     self.target_y = 5  # ee y coordinate limits for 8 link arm are
     self.target_z = 5  # ee z coordniate limits for 8 link arm are
@@ -93,6 +97,10 @@ class OctopusEnv(gym.Env):
       #self.number_of_links_urdf = number_of_links_urdf
       self.model_urdf = "romans_urdf_files/octopus_files/python_scripts_edit_urdf/octopus_generated_"+str(self.number_of_links_urdf)+"_links.urdf"
       self.octopusBodyUniqueId = self._p.loadURDF( fileName=os.path.join(pybullet_data.getDataPath(),self.model_urdf) , flags=pybullet.URDF_USE_SELF_COLLISION | pybullet.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
+      #choose which joints to unlock
+      
+      
+      #implement torque on unlocked motors
       self._p.setJointMotorControlArray(bodyUniqueId=self.octopusBodyUniqueId, jointIndices=list(range(8)), controlMode = self._p.POSITION_CONTROL, positionGains=[0.1]*self.number_of_links_urdf, velocityGains=[0.1]*self.number_of_links_urdf, forces=[0]*self.number_of_links_urdf) #turns off motors so that robot joints are not stiff
       self.goal_point_urdf = "sphere8cube.urdf" 
       self.goalPointUniqueId = self._p.loadURDF( fileName=os.path.join(pybullet_data.getDataPath(),self.goal_point_urdf) , basePosition=[self.target_x, self.target_y, self.target_z], useFixedBase=1 ) #flags=self._p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS) 
@@ -167,7 +175,7 @@ class OctopusEnv(gym.Env):
     self.states = self.get_states()
     self.step_observations = self.states
     return self.step_observations
-    
+#### GET STATES    
   def get_states(self):
     #### get tuple of link states
     self.link_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list( range(self.number_of_links_urdf) ), computeLinkVelocity=True, computeForwardKinematics=True  ) # [self.number_of_links_urdf-1] )#linkIndices = list(range(self.number_of_links_urdf))) #linkIndices=[0,..., self.number_of_links_urdf-1]
@@ -212,6 +220,7 @@ class OctopusEnv(gym.Env):
     
     return self.step_observations
 
+#### STEP
   def step(self, actions):
     #self.link_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf))) #linkIndices=[0,..., slef.number_of_links_urdf-1]
     #self.joint_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf)))

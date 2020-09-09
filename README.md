@@ -15,7 +15,7 @@ the 8-link octopus environment:
 https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_env.py
 
 the 8-link octopus environment (with joint locking):
-
+https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_lockedjoints_env.py
 
 
 

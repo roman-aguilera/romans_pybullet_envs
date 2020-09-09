@@ -80,6 +80,7 @@ class OctopusEnv(gym.Env):
   #  self.robot.np_random = self.np_random  # use the same np_randomizer for robot as for env
     return [seed]
 
+#### RESET
   def reset(self):
     if (self.physicsClientId < 0): #if it is the first time we are loading the simulations 
       self.ownsPhysicsClient = True  #this
@@ -167,7 +168,7 @@ class OctopusEnv(gym.Env):
     self.states = self.get_states()
     self.step_observations = self.states
     return self.step_observations
-    
+#### GET STATES    
   def get_states(self):
     #### get tuple of link states
     self.link_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list( range(self.number_of_links_urdf) ), computeLinkVelocity=True, computeForwardKinematics=True  ) # [self.number_of_links_urdf-1] )#linkIndices = list(range(self.number_of_links_urdf))) #linkIndices=[0,..., self.number_of_links_urdf-1]
@@ -211,7 +212,7 @@ class OctopusEnv(gym.Env):
     self.ee_speed = np.sqrt( sum( np.square([self.end_effector_vx, self.end_effector_vy, self.end_effector_vz]) ) ) # speed = 2-norm of the xyz velocity vector 
     
     return self.step_observations
-
+#### STEP
   def step(self, actions):
     #self.link_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf))) #linkIndices=[0,..., slef.number_of_links_urdf-1]
     #self.joint_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf)))
@@ -262,7 +263,7 @@ class OctopusEnv(gym.Env):
       self.done=True
     return self.step_observations, self.step_reward, self.done, {}
 
-
+#### RENDER
   def render(self, mode='human', close=False):
     if mode == "human":
       self.isRender = True
