@@ -8,7 +8,7 @@ To use my custom gym environments, enter the following commands from the termina
 
 ```
 cd <path/to/where/you/want/to/store/these/files>
-git clone https://github.com/roman-aguilera/romans_pybullet_envs.git
+git clone https://github.com/roman-aguilera/romans_pybullet_gym_envs.git
 cd romans_pybullet_envs
 pip install -e .
 ```
