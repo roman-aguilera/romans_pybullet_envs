@@ -1,6 +1,8 @@
 # Roman's Pybullet Gym Environments
 
-This is where I keep my custom gym environments. It is amodified version of pybullet_envs. https://github.com/bulletphysics/bullet3/tree/master/examples/pybullet/gym/pybullet_envs 
+This is where I keep my custom gym environments. 
+It is amodified version of pybullet_envs: https://github.com/bulletphysics/bullet3/tree/master/examples/pybullet/gym/pybullet_envs 
+The Pybullet Gymperium was a helpful reference when trying to design these environments: https://github.com/benelot/pybullet-gym
 
 To use my custom gym environments, enter the following commands from the terminal:
 
