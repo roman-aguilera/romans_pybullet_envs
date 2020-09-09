@@ -1,10 +1,12 @@
 # romans_pybullet_envs
 
-This is where I keep my custom gym environments. To use my environments, use the following commands
+This is where I keep my custom gym environments. To use them, enter the following commands from the terminal:
 
 ```
-git clone
+cd <path/to/where/you/want/to/store/these/files>
+git clone https://github.com/roman-aguilera/romans_pybullet_envs.git
 cd romans_pybullet_envs
+pip install -e .
 ```
 
 
