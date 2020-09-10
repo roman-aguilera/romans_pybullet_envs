@@ -18,6 +18,11 @@ https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_env.p
 https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_lockedjoints_env.py
 
 
+## Links for cleaning up later:
+adding a gitignore file
+https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
+https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
+
 
 
 ## Credits:
