@@ -19,7 +19,7 @@ https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_locke
 
 
 ## Links for cleaning up later:
-adding a gitignore file
+adding a gitignore file for swp files
 
 * https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
 
