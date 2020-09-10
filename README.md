@@ -20,8 +20,10 @@ https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_locke
 
 ## Links for cleaning up later:
 adding a gitignore file
-https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
-https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
+
+* https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
+
+* https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
 
 
 
