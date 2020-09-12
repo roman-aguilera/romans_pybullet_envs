@@ -1,3 +1,7 @@
+
+#call this environment from the python interpreter with the command 
+#env_instance = gym.make("OctopusArmLockedJoints2DBulletEnv-v0", render=True)
+
 import gym, gym.spaces, gym.utils, gym.utils.seeding
 import numpy as np
 import pybullet

@@ -30,7 +30,7 @@ class OctopusEnv(gym.Env):
 
   metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
 
-  def __init__(self, render=False, number_of_links_urdf=8, number_of_joints_urdf=8): #def __init__(self, render=False):
+  def __init__(self, render=True, number_of_links_urdf=8, number_of_joints_urdf=8): #def __init__(self, render=False):
     self.scene = None
     self.physicsClientId = -1 #indicates that we have not started a pybullet simulation, this number is changed when we do start a simulation
     self.ownsPhysicsClient = 0 #indicates that we have not started a pybullet simulation, this is changed to True when we do start a simulation (in the reset function)
@@ -58,7 +58,7 @@ class OctopusEnv(gym.Env):
     [self.y_lower_limit, self.y_upper_limit] = [-15,15]  # reachable y coordinates
     [self.z_lower_limit, self.z_upper_limit] = [0,15]  # reachable z coordinates
     
-    self.radius_to_goal_epsilon = 9e-1 #1e-1 #1e-3
+    self.radius_to_goal_epsilon = 5 #10 #1e0 #9e-1 #1e-1 #1e-3
     self.joint_states=np.zeros(shape=(2*self.number_of_links_urdf,))
     self.time_stamp = 0 #time elapsed since last reset
     self.time_step = 1./240 #this is the default timestep in pybullet, to set other tipestep use the following code and place it in the reset() method:  self._p.setTimeStep(timeStep = self.time_step, physicsclientId=self.physicsClientId)
@@ -134,13 +134,48 @@ class OctopusEnv(gym.Env):
     
     #reset joint positions and velocities
     for i in range(self.number_of_joints_urdf):
-      #all positions and velocities are 0
-      self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=0, targetVelocity=0 ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
-      #random initial positions between (-pi/2, pi/2) #velocities
-      self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi/2*0, np.pi/2*0), targetVelocity=random.uniform(-np.pi*0, np.pi*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+      
+      #ROLLOUT1: all positions=0, all velocities=0 #(initially stretched and static) 
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=0, targetVelocity=0 ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+      
+     #ROLLOUT2: all positions=pi, all velocities=0 #(initially contracted and static)
+     #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=np.pi, targetVelocity=0 )
+      
+      #ROLLOUT3: all positions=0, all velocities=(-pi*c, pi*c) # (initially stretched and dynamic) 
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=0, targetVelocity=random.uniform(-np.pi*0.5, np.pi*0.5) )
+      
+      #ROLLOUT4: all positions = pi (IDEA: try uniform sampling around it?), all velocities=(-pi*c,*pi*c) (initially contracted and dynamic)
+      self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=np.pi, targetVelocity=random.uniform(-np.pi*2, np.pi*2) )
+     
+      #TRAINING1: random initial positions=0, velocities=0 #essentialltially arm is reset to contracted and dynamic
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi, np.pi), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity      
+ 
+      #TRAINING2: random initial positions=(-pi, pi), velocities=0
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi, np.pi), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+
+      #LAST LEFT OFF HERE
+      #TRAINING3: random initial positions=(-pi, pi), velocities=(-pi*c, pi*c)
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi, np.pi), targetVelocity=random.uniform(-np.pi/4, np.pi/4) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+      
+      #TRAINING4: random initial positions=0, velocities=(-pi*c, pi*c)
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi, np.pi), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+      
+      #TRAINING5: random initial positions=(-pi*c, pi*c), velocities=0
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi/4, np.pi/4), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+   
+      #TRAINING6: random initial positions=(-pi*c, pi*c), velocities=(-pi*c, pi*c)
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi/4, np.pi/4), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+
+      #TRAINING7: all initial positions=0, velocities=(pi*c,pi*c) #essentially arm is is reset to stretched and dynamic
+
+      #TRAINING8: all initial positions=pi, velocities=(pi*c,pi*c) #initiall arm is reset to contracted and dynamic 
+      
     self.time_stamp=0
     
-    self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=0, targetValue=random.uniform(-np.pi/2*-2, np.pi/2*2), targetVelocity=random.uniform(-np.pi*0, np.pi*0) ) #reset base link
+    #make first link angle face downward
+    #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=0, targetValue=random.uniform(np.pi/2*2, np.pi/2*2), targetVelocity=random.uniform(-np.pi*0, np.pi*0) ) #reset base link
+    
+    #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=0, targetValue=random.uniform(-np.pi/2*1, np.pi/2*1), targetVelocity=random.uniform(-np.pi*0, np.pi*0) ) #reset base link
     
     #randomize joint positions and velocities
     #for i in range(self.number_of_joints_urdf):
@@ -220,7 +255,7 @@ class OctopusEnv(gym.Env):
     #set torques
     self.torques = 100*actions #1000*actions
     #self.torques[7] = 240 #set last link's torque to zero
-    self.torques[7] = self.torques[7]/100 #self.torques[7] = 0 
+    self.torques[7] =  self.torques[7]/10 #self.torques[7] = 0 
     #self.torques = np.clip(a=self.torques, a_min=np.array([-3000, -450, -400, -400, -400, -300, -300, -241]), a_max=np.array([3000, 450, 400, 400, 400, 300, 300, 241])) #min and max were determined with eye test 
     #note #clips for lower minimun torque to move joint a_min=np.array([240, 242, 242, 242, 242, 242, 240, 240])
     #self.torques[7] = 240.2
@@ -230,16 +265,14 @@ class OctopusEnv(gym.Env):
     self.time_stamp += self.time_step
     self.step_observations = self.get_states()
     self.ee_link_index = 7
-    self.reward_for_being_close_to_goal = 1/(abs(0.05*self.radius_to_goal)**2)  #+ 1/(abs(np.clip(a=self.joint_states[self.ee_link_index+self.number_of_joints_urdf], a_min=1e-1, a_max=None) )) # + 1/abs(actions[self.ee_link_index]) # 1/abs(self.joint_states[self.ee_link_index+self.number_of_joints_urdf])) #reward low ee angular velocity #- (1/500)*sum(abs(self.torques)) # - (self.time_stamp)**2 #-electricity_cost #+1/(fractal_dimensionality_number)
+    self.reward_for_being_close_to_goal = 0 # 1/(abs(0.05*self.radius_to_goal)**2)  #+ 1/(abs(np.clip(a=self.joint_states[self.ee_link_index+self.number_of_joints_urdf], a_min=1e-1, a_max=None) )) # + 1/abs(actions[self.ee_link_index]) # 1/abs(self.joint_states[self.ee_link_index+self.number_of_joints_urdf])) #reward low ee angular velocity #- (1/500)*sum(abs(self.torques)) # - (self.time_stamp)**2 #-electricity_cost #+1/(fractal_dimensionality_number)
     #self.reward += self.step_reward
     #print("radius to goal : ", self.radius_to_goal) #debugging
     
-    #stopping criteria
-    self.done = True if self.radius_to_goal <= self.radius_to_goal_epsilon else self.done # update done criteria if ee is in epsilon ball
-    
+
     #rewards
-    self.reward_for_reaching_goal = 1/abs(self.radius_to_goal**4) if self.radius_to_goal <= self.radius_to_goal_epsilon else 0 #reward for reaching goal
-    self.reward_for_being_close_to_goal = 1/(abs(0.05*self.radius_to_goal)**2)  #+ 1/(abs(np.clip(a=self.joint_states[self.ee_link_index+self.number_of_joints_urdf], a_min=1e-1, a_max=None) )) # + 1/abs(actions[self.ee_link_index]) # 1/abs(self.joint_states[self.ee_link_index+self.number_of_joints_urdf])) #reward low ee angular velocity #- (1/500)*sum(abs(self.torques)) # - (self.time_stamp)**2 #-electricity_cost #+1/(fractal_dimensionality_number)  
+    self.reward_for_reaching_goal = 1 if self.radius_to_goal <= self.radius_to_goal_epsilon else 0 # 1/abs(self.radius_to_goal**4) if self.radius_to_goal <= 2*self.radius_to_goal_epsilon else 0 #reward for reaching goal
+    self.reward_for_being_close_to_goal = 0# 1/(abs(0.05*self.radius_to_goal)**2)  #+ 1/(abs(np.clip(a=self.joint_states[self.ee_link_index+self.number_of_joints_urdf], a_min=1e-1, a_max=None) )) # + 1/abs(actions[self.ee_link_index]) # 1/abs(self.joint_states[self.ee_link_index+self.number_of_joints_urdf])) #reward low ee angular velocity #- (1/500)*sum(abs(self.torques)) # - (self.time_stamp)**2 #-electricity_cost #+1/(fractal_dimensionality_number)  
     
     #costs
     self.num_joints_at_limit = 0
@@ -256,10 +289,14 @@ class OctopusEnv(gym.Env):
     #else: 
       #self.step_reward += self.reward_for_reaching_goal
       #self.reward += self.reward_for_reaching_goal
-    self.step_reward = self.reward_for_being_close_to_goal #+ self.joints_at_limit_cost
+    self.step_reward = self.reward_for_being_close_to_goal + self.reward_for_reaching_goal  #+ self.joints_at_limit_cost
     self.reward += self.step_reward
-      
+    
+    #stopping criteria
+    self.done = True if self.radius_to_goal <= self.radius_to_goal_epsilon else self.done # update done criteria if ee is in epsilon ball  
     if self.time_stamp >= 8:  #originally >=20
+      self.done=True
+    if self.radius_to_goal <= self.radius_to_goal_epsilon: #within epsilon ball
       self.done=True
     return self.step_observations, self.step_reward, self.done, {}
 
