@@ -18,12 +18,22 @@ https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_locke
 
 ## Requirements
 PyKDL (used for locked env). Docs and references included here:
+
 https://anaconda.org/conda-forge/python-orocos-kdl
+
 https://answers.ros.org/question/10124/relative-rotation-between-two-quaternions/
+
 http://docs.ros.org/diamondback/api/kdl/html/python/index.html
+
 http://wiki.ros.org/python_orocos_kdl
+
 http://docs.ros.org/indigo/api/orocos_kdl/html/classKDL_1_1Rotation.html
+
 https://github.com/orocos/orocos_kinematics_dynamics
+
+ArgParse
+
+https://docs.python.org/3.3/library/argparse.html
 
 ## Links for cleaning up later:
 adding a gitignore file for swp files
