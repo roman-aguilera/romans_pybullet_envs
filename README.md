@@ -9,14 +9,21 @@ cd romans_pybullet_gym_envs
 pip install -e .
 ```
 
-
-
+## Environments
 The exact environments that I created myself are:
 * The 8-link octopus environment:
 https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_env.py
 * The 8-link octopus environment, with joint locking (work in rogress):
 https://github.com/roman-aguilera/romans_pybullet_envs/blob/master/octopus_lockedjoints_env.py
 
+## Requirements
+PyKDL (used for locked env). Docs and references included here:
+https://anaconda.org/conda-forge/python-orocos-kdl
+https://answers.ros.org/question/10124/relative-rotation-between-two-quaternions/
+http://docs.ros.org/diamondback/api/kdl/html/python/index.html
+http://wiki.ros.org/python_orocos_kdl
+http://docs.ros.org/indigo/api/orocos_kdl/html/classKDL_1_1Rotation.html
+https://github.com/orocos/orocos_kinematics_dynamics
 
 ## Links for cleaning up later:
 adding a gitignore file for swp files
