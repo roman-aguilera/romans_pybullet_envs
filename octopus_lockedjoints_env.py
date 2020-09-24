@@ -107,14 +107,14 @@ class OctopusEnv(gym.Env):
         #get joint frame position, relative to parent link frame
         jointParentLinkFramePosition=p.getJointInfo(octopusBodyUniqueId, jointIndex=0, physicsClientId=physicsClientId)[14]
         
-        #get joint frame orientation, relative to parent link frame
+        #get joint frame orientation, relative to parent CoM link frame
         jointParentLinkFrameOrientation=p.getJointInfo(octopusBodyUniqueId, jointIndex=0, physicsClientId=physicsClientId)[15] 
         
-        #get position of the joint frame, relative to a given child center of mass coordinate frame, (or world origin if no child specified)  
-        jointChildLinkFramePosition=
+        #get position of the joint frame, relative to a given child CoM Coordidinate Frame, (other posibility: get world origin (0,0,0) if no child specified for this joint)  
+        jointChildLinkFramePosition=p.getjointState
         
-        #
-        jointChildLinkFrameOrientation=
+        #get position of the joint frame, relative to a given child center of mass coordinate frame, (or get the world origin if no child is specified for this joint)
+        jointChildLinkFrameOrientation=p.getLinkState
         
         constraintUniqueIds.append(  self._p.createConstraint(parentBodyUniqueId=self.octopusBodyUniqueId , parentLinkIndex=i childBodyUniqueId=self.octopusBodyUniqueId , childLinkIndex=i+1 , jointType=JOINT_FIXED , jointAxis=[0,0,1], parentFramePosition= [0,0,1], childFramePosition=[0,0,1], parentFrameOrientation=[0,0,1], childFrameOrientation=[0,0,1], physicsClientId=self.physicsClientId )  )
       
