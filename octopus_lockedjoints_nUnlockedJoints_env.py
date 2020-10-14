@@ -30,7 +30,7 @@ except:
   pass
 
 #import gym; import pybullet_envs; 
-#env_instance = gym.make("OctopusArmLockedJoints2DBulletEnv-v0", render=True, number_of_free_joints=3)
+#env_instance = gym.make('OctopusArmLockedJointsNUnlockedJoints2DBulletEnv-v0', renders=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3)
 #env_instance.reset(); #optional #env_instance.env._p.setRealTimeSimulation(1) 
 #joint_test=7; action_sample_test=env_instance.env.action_space.sample()*1; action_sample_test[0:joint_test]=0; action_sample_test[joint_test]=10; action_sample_test[joint_test+1:8]=0; env_instance.step(action_sample_test);
 class OctopusEnv(gym.Env):
@@ -63,11 +63,13 @@ class OctopusEnv(gym.Env):
     self.number_of_torques_urdf  = number_of_links_urdf
     self.number_of_free_joints = number_of_free_joints
     
+    #### LOCK/UNLOCK MEACHANISM (begin)
     #creates a list of constraints to use and update (needed to lock and unlock joints)
-    self.constraintUniqueIdsList = [None]*self.number_of_joints_urdf    
-    
+    print("creating joint lock/unlock mechanism... ")
+    self.constraintUniqueIdsList = [None]*self.number_of_joints_urdf
+      
     #creates list of masks for chossing which joints to unlock #modified from https://stackoverflow.com/a/1851138/14024439
-    import itertools
+    import itertools 
     def kbits(n, k):
       result = []
       for bits in itertools.combinations(range(n), k):
@@ -76,24 +78,48 @@ class OctopusEnv(gym.Env):
           s[bit] = '1'
         result.append(''.join(s))
       return result
-    masks=kbits(self.number_of_joints_urdf, self.number_of_free_joints) #list of masks
-    print(masks)
-
-    #creates list of masks for choosing whether unlocked joint is actuated or underactuated (torque 0) #modified from https://code.activestate.com/recipes/425303-generating-all-strings-of-some-length-of-a-given-a/
+    #list of masks (locked vs unlocked) in string format
+    masks_unlock_as_list_of_strings=kbits(self.number_of_joints_urdf, self.number_of_free_joints) 
+    #convert masks (locked vs unlocked) from string format to np array format
+    masks_unlock_as_list_of_nparrays=[None]*len(masks_as_list_of_strings)
+    
+    for i in range( len(masks_as_list_of_nparrays) ):   
+      self.masks_unlock_as_list_of_nparrays[i] = np.array([int(x) for x in masks[i]])
+            
+    self.number_of_combinations_unlock=len(masks_as_list_of_nparrays)
+    #### LOCK/UNLOCK MEACHANISM (end)
+    
+    
+      
+    #### ACTUATE/UNACTUATE MECHANISHM (begin)
+    print("creating joint actuate/unactuate mechnism...")
+    #creates list of masks for choosing whether unlocked joint is actuated or underactuated (torque 0) 
+    #modified from https://code.activestate.com/recipes/425303-generating-all-strings-of-some-length-of-a-given-a/
     def allstrings2(alphabet, length):
     """Find the list of all strings of 'alphabet' of length 'length'"""
-      c = []
+      c = [ ]
       for i in range(length):
         c = [[x]+y for x in alphabet for y in c or [[]]]
       return c
-     
-    allstrings2([0,1], 3)
-     
+        
+    #list of masks (actuated vs unactuated) (0 = unactuate, 1 = actuate)
+    masks_unactuated_as_list_of_list_of_np_array = []
+    for i in range(number_of_joints+1): #between 0 unlocked joints to all joints unlocked
+      masks_unactuated_as_list_of_list_of_ints.append(allstrings2([0,1], i) ) 
+    masks_unactuated_as_np_array = np.array(masks_unactuated_as_list_of_list_of_ints)
+    #first index corresponds to number of unlockedjoints,  second index corresponds to decision of unactuation for whole arm, third index corresponds to joint index
+      #masks_unactuated_as_list_of_np_array = np.array(allstrings2([0,1], self.number_of_unlocked_joints)) # first index corresponds to decision of unactuation for whole arm, second index corresponds to joint index 
+       
+    self.number_of_combinations_unactuate=len(masks_unactuated_as_list_of_np_array[self.number_of_unlocked_joints])
+        
+    #### ACTUATE/UNACTUATE MECHANISM (end)
+    
+    
     self.target_x = 0  # this is 0 in 2D case
     self.target_y = 5  # ee y coordinate limits for 8 link arm are
     self.target_z = 5  # ee z coordniate limits for 8 link arm are
     
-    
+        
     [self.x_lower_limit, self.x_upper_limit] = [0.0, 0.0]  # reachable x coordinates (double check for each arm)
     [self.y_lower_limit, self.y_upper_limit] = [-15,15]  # reachable y coordinates
     [self.z_lower_limit, self.z_upper_limit] = [0,15]  # reachable z coordinates
@@ -102,21 +128,28 @@ class OctopusEnv(gym.Env):
     self.joint_states=np.zeros(shape=(2*self.number_of_links_urdf,))
     self.time_stamp = 0 #time elapsed since last reset
     self.time_step = 1./240 #this is the default timestep in pybullet, to set other tipestep use the following code and place it in the reset() method:  self._p.setTimeStep(timeStep = self.time_step, physicsclientId=self.physicsClientId)
+     
+     
+     
+    ##### CREATE ACTION AND OBSERVATION SPACES (begin)
     
-    
-    
-    ##### create action and observation spaces (begin)
     #observation space (formats the types of inputs to NN)
     obs_dim = 22 # num_links (8) *2 + extra_states (self.radius_to_goal, self.theta_to_goal, self.phi_to_goal) + extra states ((self.end_effector_vx, self.end_effector_vy, self.end_effector_vz))
     high = np.inf * np.ones([obs_dim]); 
     self.observation_space = gym.spaces.Box(-high, high)  #self.observation_space = robot.observation_space
-    
+      
+      
     #action space(formats the types of outputs of NN)
     action_dim = self.number_of_torques_urdf 
     high = np.ones([action_dim]); 
-    self.action_space = gym.spaces.Box(-high, high)  #self.action_space = robot.action_space
+    self.action_space = gym.spaces.Dict({
+      'torques' : gym.spaces.Box(-high, high) ,
+      'unlocked_joints_combination' : gym.spaces.Discrete(self.number_of_combinations),
+      'unactuated_joints_combination' : gym.spaces.Discrete(self.number_of_free_joints) })  
+      
+    #self.action_space = robot.action_space
     #self.reset()
-    #### create action and observation spaces (end)
+    #### CREATE ACTION AND OBSERVATION SPACES (end)
     
   #def configure(self, args):
   #  self.robot.args = args
@@ -143,7 +176,9 @@ class OctopusEnv(gym.Env):
       self.octopusBodyUniqueId = self._p.loadURDF( fileName=os.path.join(pybullet_data.getDataPath(), self.model_urdf), flags=self._p.URDF_USE_SELF_COLLISION | self._p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
       #turn off all motors so that joints are not stiff for the rest of the simulation
       self._p.setJointMotorControlArray(bodyUniqueId=self.octopusBodyUniqueId, jointIndices=list(range(8)), controlMode = self._p.POSITION_CONTROL, positionGains=[0.1]*self.number_of_links_urdf, velocityGains=[0.1]*self.number_of_links_urdf, forces=[0]*self.number_of_links_urdf) 
-     
+        
+        
+      #### CHOOSE COMBINATION OF JOINTS (RESET) (begin)
       #this loop unlocks all of the arm's joints
       for i in range(self.number_of_joints_urdf):
         if self.constraintUniqueIdsList[i] is not None:
@@ -152,31 +187,19 @@ class OctopusEnv(gym.Env):
        
       #this loop locks all of the arm's joints
       for i in range(self.number_of_joints_urdf-1):
-        #get joint's child link name (for sanity check to ensure that we are indexing correct values from the list)
-        #jointChildLinkName=jointParentFramePosition=p.getJointInfo(self.octopusBodyUniqueId, jointIndex=0, physicsClientId=self.physicsClientId)[12]
- 
-        #get joint frame position, relative to parent link frame
-        #jointParentLinkFramePosition=p.getJointInfo(octopusBodyUniqueId, jointIndex=0, physicsClientId=physicsClientId)[14]
-        
-        #get joint frame orientation, relative to parent CoM link frame
-        #jointParentLinkFrameOrientation=p.getJointInfo(octopusBodyUniqueId, jointIndex=0, physicsClientId=physicsClientId)[15] 
-        
-        #get position of the joint frame, relative to a given child CoM Coordidinate Frame, (other posibility: get world origin (0,0,0) if no child specified for this joint)  
-        #jointChildLinkFramePosition=p.getjointState
-        
-        #get position of the joint frame, relative to a given child center of mass coordinate frame, (or get the world origin if no child is specified for this joint)
-        #jointChildLinkFrameOrientation=p.getLinkState
-        
-        #constraintUniqueIds.append(  self._p.createConstraint(parentBodyUniqueId=self.octopusBodyUniqueId , parentLinkIndex=i childBodyUniqueId=self.octopusBodyUniqueId , childLinkIndex=i+1 , jointType=JOINT_FIXED , jointAxis=[0,0,1], parentFramePosition= [0,0,1], childFramePosition=[0,0,1], parentFrameOrientation=[0,0,1], childFrameOrientation=[0,0,1], physicsClientId=self.physicsClientId )  )
          
-        #constraintUniqueIds.append( p.createConstraint( parentBodyUniqueId=octopusBodyUniqueId, parentLinkIndex=6, childBodyUniqueId=octopusBodyUniqueId, childLinkIndex=6+1, jointType=p.JOINT_FIXED, jointAxis=[1,0,0], parentFramePosition= [0,0,1], childFramePosition=[0,0,-1], parentFrameOrientation=p.getJointInfo(bodyUniqueId=octopusBodyUniqueId, jointIndex=7, physicsClientId=physicsClientId)[15], childFrameOrientation= p.getQuaternionFromEuler(eulerAngles=[-p.getJointState(bodyUniqueId=octopusBodyUniqueId, jointIndex=7, physicsClientId=physicsClientId)[0],-0,-0]), physicsClientId=physicsClientId ) )
+        #lock single joint
         self.constraintUniqueIdsList[i] = self._p.createConstraint( parentBodyUniqueId=self.octopusBodyUniqueId, parentLinkIndex=i-1, childBodyUniqueId=self.octopusBodyUniqueId, childLinkIndex=i, jointType=self._p.JOINT_FIXED, jointAxis=[1,0,0], parentFramePosition= [0,0,1], childFramePosition=[0,0,-1], parentFrameOrientation=self._p.getJointInfo(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[15], childFrameOrientation=self._p.getQuaternionFromEuler(eulerAngles=[-self._p.getJointState(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[0],-0,-0]), physicsClientId=self.physicsClientId )
          
       #unlock last 3 joints
+      masks_as_list_of_np_arrays[3][-1]
       for i in range(3):
         if self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] is not None:
           self._p.removeConstraint( userConstraintUniqueId=self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] , physicsClientId=self.physicsClientId  )
           self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i]=None 
+      #### CHOOSE COMBINATION OF JOINTS (RESET) (end)
+      
+      
       
       #indicate urdf file for visualizing goal point and load it
       self.goal_point_urdf = "sphere8cube.urdf" 
@@ -342,7 +365,7 @@ class OctopusEnv(gym.Env):
     #self.joint_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf)))
     
     #set torques
-    self.torques = actions*10 #100*actions #1000*actions
+    self.torques = actions['torques']*10 #100*actions #1000*actions
     #self.torques[7] = 240 #set last link's torque to zero
     #self.torques[7] =  self.torques[7]/10 #self.torques[7] = 0 
     #self.torques = np.clip(a=self.torques, a_min=np.array([-3000, -450, -400, -400, -400, -300, -300, -241]), a_max=np.array([3000, 450, 400, 400, 400, 300, 300, 241])) #min and max were determined with eye test 
@@ -355,6 +378,34 @@ class OctopusEnv(gym.Env):
     
     #TODO: unlock joints
     
+    #### CHOOSE COMBINATION OF UNLOCKED JOINTS (STEP) (begin)
+    #this loop unlocks all of the arm's joints
+    for i in range(self.number_of_joints_urdf):
+      if self.constraintUniqueIdsList[i] is not None:
+        self._p.removeConstraint(self.constraintUniqueIdsList[i])
+        self.constraintUniqueIdsList[i]=None
+
+    #this loop locks all of the arm's joints
+    for i in range(self.number_of_joints_urdf-1):         
+      #lock single joint
+      self.constraintUniqueIdsList[i] = self._p.createConstraint( parentBodyUniqueId=self.octopusBodyUniqueId, parentLinkIndex=i-1, childBodyUniqueId=self.octopusBodyUniqueId, childLinkIndex=i, jointType=self._p.JOINT_FIXED, jointAxis=[1,0,0], parentFramePosition= [0,0,1], childFramePosition=[0,0,-1], parentFrameOrientation=self._p.getJointInfo(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[15], childFrameOrientation=self._p.getQuaternionFromEuler(eulerAngles=[-self._p.getJointState(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[0],-0,-0]), physicsClientId=self.physicsClientId )
+    
+    
+    #unlock desired joints
+    unlock_decision = actions['unlocked_joints_combination'] #is this an int
+     
+    masks_unlock_as_list_list_of_np_arrays[self.number_of_unlocked_joints][-1] #three unlocked joints #last 3 unlocked
+    unlock_decision = actions['unlocked_joints_combination']
+     
+    for i in range(3):
+      if self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] is not None:
+        self._p.removeConstraint( userConstraintUniqueId=self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] , physicsClientId=self.physicsClientId  )
+        self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i]=None
+    #### CHOOSE COMBINATION OF UNLOCKED JOINTS (STEP) (end)
+    
+    unactuate_decision = actions['unactuated_joints_combination']
+    
+    self.torques = actions['']
     
     #set torques 
     self._p.setJointMotorControlArray(physicsClientId=self.physicsClientId, bodyUniqueId=self.octopusBodyUniqueId, jointIndices= list(range(self.number_of_torques_urdf)) , controlMode=self._p.TORQUE_CONTROL, forces=list( self.torques ) )

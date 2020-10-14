@@ -1,8 +1,9 @@
 ####DEBUGGING CODE (START)
 #call this envrionment from the python interpreter by using these commands
 #import gym; import pybullet_envs; 
-#env_instance = gym.make("OctopusArmLockedJoints2DBulletEnv-v0", render=True, number_of_free_joints=3)
+#env_instance = gym.make('OctopusArmLockedJointsClassifierForUnlockingJoints2DBulletEnv-v0', render=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3, number_of_simulation_steps_per_gym_step=1)
 #env_instance.reset(); 
+#env_instance.step(env_instance.action_space.sample())
 #optional #env_instance.env._p.setRealTimeSimulation(1) #optional 
 #joint_test=7; action_sample_test=env_instance.env.action_space.sample()*1; action_sample_test[0:joint_test]=0; action_sample_test[joint_test]=10; action_sample_test[joint_test+1:8]=0; env_instance.step(action_sample_test); #input torque at single joint for one timestep
 #### DEBUGGING CODE (END)
@@ -41,8 +42,15 @@ class OctopusEnv(gym.Env):
 	"""
 
   metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 60}
-
-  def __init__(self, render=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3): #def __init__(self, render=False):
+  
+  #### NOTE: INIT
+  def __init__(self, 
+      render=False, 
+      number_of_links_urdf=16, 
+      number_of_joints_urdf=16, 
+      number_of_free_joints=3, 
+      number_of_simulation_steps_per_gym_step=50, 
+      radius_to_goal_epsilon=5 ): #def __init__(self, render=False):
     self.scene = None
     self.physicsClientId = -1 #indicates that we have not started a pybullet simulation, this number is changed when we do start a simulation
     self.ownsPhysicsClient = 0 #indicates that we have not started a pybullet simulation, this is changed to True when we do start a simulation (in the reset function)
@@ -62,6 +70,8 @@ class OctopusEnv(gym.Env):
     self.number_of_joints_urdf = number_of_joints_urdf
     self.number_of_torques_urdf  = number_of_links_urdf
     self.number_of_free_joints = number_of_free_joints
+
+    self.number_of_simulation_steps_per_gym_step = number_of_simulation_steps_per_gym_step
     
     #creates a list of constraints to use and update (needed to lock and unlock joints)
     self.constraintUniqueIdsList = [None]*self.number_of_joints_urdf    
@@ -81,7 +91,7 @@ class OctopusEnv(gym.Env):
 
     #creates list of masks for choosing whether unlocked joint is actuated or underactuated (torque 0) #modified from https://code.activestate.com/recipes/425303-generating-all-strings-of-some-length-of-a-given-a/
     def allstrings2(alphabet, length):
-    """Find the list of all strings of 'alphabet' of length 'length'"""
+      """Find the list of all strings of 'alphabet' of length 'length'"""
       c = []
       for i in range(length):
         c = [[x]+y for x in alphabet for y in c or [[]]]
@@ -98,35 +108,36 @@ class OctopusEnv(gym.Env):
     [self.y_lower_limit, self.y_upper_limit] = [-15,15]  # reachable y coordinates
     [self.z_lower_limit, self.z_upper_limit] = [0,15]  # reachable z coordinates
     
-    self.radius_to_goal_epsilon = 5 #10 #1e0 #9e-1 #1e-1 #1e-3
+    self.radius_to_goal_epsilon = radius_to_goal_epsilon #10 #1e0 #9e-1 #1e-1 #1e-3
     self.joint_states=np.zeros(shape=(2*self.number_of_links_urdf,))
     self.time_stamp = 0 #time elapsed since last reset
-    self.time_step = 1./240 #this is the default timestep in pybullet, to set other tipestep use the following code and place it in the reset() method:  self._p.setTimeStep(timeStep = self.time_step, physicsclientId=self.physicsClientId)
-    
-    
-    
+    self.time_step = 1./240*self.number_of_simulation_steps_per_gym_step # 1./240 is the default timestep in pybullet, to set other tipestep use the following code and place it in the reset() method:  self._p.setTimeStep(timeStep = self.time_step, physicsclientId=self.physicsClientId)
+     
+     
     ##### create action and observation spaces (begin)
     #observation space (formats the types of inputs to NN)
-    obs_dim = 22 # num_links (8) *2 + extra_states (self.radius_to_goal, self.theta_to_goal, self.phi_to_goal) + extra states ((self.end_effector_vx, self.end_effector_vy, self.end_effector_vz))
+    obs_dim = self.number_of_links_urdf*2 + 3 + 3 #+ self.number_of_joint_urdf? + self.time? #obs_dim = 22 # (number of links [default to 8 links]) * 2 [for joint positions and velocities] + extra_states [self.radius_to_goal, self.theta_to_goal, self.phi_to_goal] + extra states [self.end_effector_vx, self.end_effector_vy, self.end_effector_vz]  + self.number_of_joints [default to 8 links] [for joint locking/unlocking/passive mechanism]    
     high = np.inf * np.ones([obs_dim]); 
     self.observation_space = gym.spaces.Box(-high, high)  #self.observation_space = robot.observation_space
-    
+      
+      
     #action space(formats the types of outputs of NN)
-    action_dim = self.number_of_torques_urdf 
+    action_dim = self.number_of_torques_urdf + self.number_of_joints_urdf # torques on joints + + self.number_of_joints [default to 8 links] [for joint locking/unlocking/passive mechanism] +
     high = np.ones([action_dim]); 
     self.action_space = gym.spaces.Box(-high, high)  #self.action_space = robot.action_space
     #self.reset()
     #### create action and observation spaces (end)
-    
+      
   #def configure(self, args):
   #  self.robot.args = args
 
+#### NOTE: SEED
   def seed(self, seed=None):
     self.np_random, seed = gym.utils.seeding.np_random(seed)
   #  self.robot.np_random = self.np_random  # use the same np_randomizer for robot as for env
     return [seed]
 
-#### RESET
+#### NOTE: RESET
   def reset(self):
     if (self.physicsClientId < 0): #if it is the first time we are loading the simulations 
       self.ownsPhysicsClient = True  #this
@@ -142,7 +153,7 @@ class OctopusEnv(gym.Env):
       #load URDF into pybullet physics simulator
       self.octopusBodyUniqueId = self._p.loadURDF( fileName=os.path.join(pybullet_data.getDataPath(), self.model_urdf), flags=self._p.URDF_USE_SELF_COLLISION | self._p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
       #turn off all motors so that joints are not stiff for the rest of the simulation
-      self._p.setJointMotorControlArray(bodyUniqueId=self.octopusBodyUniqueId, jointIndices=list(range(8)), controlMode = self._p.POSITION_CONTROL, positionGains=[0.1]*self.number_of_links_urdf, velocityGains=[0.1]*self.number_of_links_urdf, forces=[0]*self.number_of_links_urdf) 
+      self._p.setJointMotorControlArray(bodyUniqueId=self.octopusBodyUniqueId, jointIndices=list(range(self.number_of_joints_urdf)), controlMode = self._p.POSITION_CONTROL, positionGains=[0.1]*self.number_of_links_urdf, velocityGains=[0.1]*self.number_of_links_urdf, forces=[0]*self.number_of_links_urdf) 
      
       #this loop unlocks all of the arm's joints
       for i in range(self.number_of_joints_urdf):
@@ -204,26 +215,29 @@ class OctopusEnv(gym.Env):
       self.physicsClientId = self._p._client 
       
       # enable gravity
-      self._p.setGravity(gravX=0, gravY=0, gravZ=0, physicsClientId=self.physicsClientId)
+      self._p.setGravity(gravX=0, gravY=0, gravZ=-9.8*0/1, physicsClientId=self.physicsClientId)
       self._p.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
     
       self.joints_and_links = robotJointsandLinks(number_of_joints=self.number_of_joints_urdf, number_of_links=self.number_of_links_urdf, bodyUniqueId=self.octopusBodyUniqueId, physicsClientId=self.physicsClientId) #make dictionaries of joints and links (refer to robotJointsandLinks() class) 
       #end of "if first loading pybullet client"
-    
-    
+     
+    ####non-first-time reset code starts here  
      
     #reset goal target to random one 
-    self.target_x = 0 # no x comoponent for 2D case 
+    self.target_x = self.target_x # no x comoponent for 2D case 
     self.target_y = random.uniform(self.y_lower_limit, self.y_upper_limit) # choose y coordinates such that arm can reach
     self.target_z = random.uniform(self.z_lower_limit, self.z_upper_limit) # choose z coordinates such that arm can reach
     #correspondingly move visual representation of goal target
-    self._p.resetBasePositionAndOrientation( bodyUniqueId=self.goalPointUniqueId, posObj=[self.target_x, self.target_y, self.target_z], ornObj=[0,0,0,1], physicsClientId=self.physicsClientId )
+    self._p.resetBasePositionAndOrientation( bodyUniqueId=self.goalPointUniqueId, 
+      posObj=[self.target_x, self.target_y, self.target_z], 
+      ornObj=[0,0,0,1], 
+      physicsClientId=self.physicsClientId )
     
     #reset joint positions and velocities
     for i in range(self.number_of_joints_urdf):
       
       #ROLLOUT1: all positions=0, all velocities=0 #(initially stretched and static) 
-      self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=0, targetVelocity=0 ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
+      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=0, targetVelocity=0 ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
       
      #ROLLOUT2: all positions=pi, all velocities=0 #(initially contracted and static)
      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=np.pi, targetVelocity=0 )
@@ -234,8 +248,8 @@ class OctopusEnv(gym.Env):
       #ROLLOUT4: all positions = pi (IDEA: try uniform sampling around it?), all velocities=(-pi*c,*pi*c) (initially contracted and dynamic)
       #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=np.pi, targetVelocity=random.uniform(-np.pi*2, np.pi*2) )
      
-      #TRAINING1: random initial positions=0, velocities=0 #essentialltially arm is reset to contracted and dynamic
-      #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi, np.pi), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity      
+      #TRAINING1: initial positions=random, initial velocities=0 #essentialltially arm is reset to (semi) contracted and dynamic
+      self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi*-1, np.pi*1), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity      
  
       #TRAINING2: random initial positions=(-pi, pi), velocities=0
       #self._p.resetJointState(bodyUniqueId = self.octopusBodyUniqueId, physicsClientId=self.physicsClientId , jointIndex=i, targetValue=random.uniform(-np.pi, np.pi), targetVelocity=random.uniform(-np.pi*0.5*0, np.pi*0.5*0) ) #tagetValue is angular (or xyz)  position #targetvelocity is angular (or xyz) veloity
@@ -292,7 +306,7 @@ class OctopusEnv(gym.Env):
     return self.step_observations
 
 
-#### GET STATES    
+#### NOTE: GET STATES    
   def get_states(self):
     #### get tuple of link states
     self.link_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list( range(self.number_of_links_urdf) ), computeLinkVelocity=True, computeForwardKinematics=True  ) # [self.number_of_links_urdf-1] )#linkIndices = list(range(self.number_of_links_urdf))) #linkIndices=[0,..., self.number_of_links_urdf-1]
@@ -336,32 +350,74 @@ class OctopusEnv(gym.Env):
     self.ee_speed = np.sqrt( sum( np.square([self.end_effector_vx, self.end_effector_vy, self.end_effector_vz]) ) ) # speed = 2-norm of the xyz velocity vector 
     
     return self.step_observations
-#### STEP
+
+
+
+#### NOTE: STEP
   def step(self, actions):
     #self.link_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf))) #linkIndices=[0,..., slef.number_of_links_urdf-1]
     #self.joint_states = self._p.getLinkStates(bodyUniqueId=self.octopusBodyUniqueId, linkIndices = list(range(self.number_of_links_urdf)))
-    
+     
     #set torques
-    self.torques = actions*10 #100*actions #1000*actions
+    self.torques = actions[0:self.number_of_links_urdf]*10 
+    # actions[0:n] or actions[:n] indexes the first n values of the action numpy array 
+    # actions[n:] indexes all the values after the n'th place in the numpy array
+    self.locking_mechanism_state = actions[self.number_of_links_urdf:self.number_of_links_urdf*2] 
+    #self.torques = actions*10 #100*actions #1000*actions #actions[self.number_of_links_urdf*2 + 3 + 3]
     #self.torques[7] = 240 #set last link's torque to zero
     #self.torques[7] =  self.torques[7]/10 #self.torques[7] = 0 
     #self.torques = np.clip(a=self.torques, a_min=np.array([-3000, -450, -400, -400, -400, -300, -300, -241]), a_max=np.array([3000, 450, 400, 400, 400, 300, 300, 241])) #min and max were determined with eye test 
     #note #clips for lower minimun torque to move joint a_min=np.array([240, 242, 242, 242, 242, 242, 240, 240])
     #self.torques[7] = 240.2
     
-    #TODO: lock joints
-    #for i in range(self.number_of_joints_urdf-1):  
-      #this doesnt work #self._p.createConstraint(parentBodyUniqueId=self.octopusBodyUniqueId , parentLinkIndex=i childBodyUniqueId=self.octopusBodyUniqueId , childLinkIndex=i+1 , jointType=JOINT_FIXED , jointAxis=[0,0,1], parentFramePosition= [0,0,1], childFramePosition=[0,0,1], parentFrameOrientation=[0,0,1], childFrameOrientation=[0,0,1], physicsClientId=self.physicsClientId )
+    #### NOTE: LOCK MECHANISM DESCRIPTION FOR CLASSIFIER (begin) 
+    #locking unlocking mechanism (deterined by action[self.number_of_joints_urdf] through actions[self.number_of_joints_urdf*2-1]) 
+      # we define the locking/unlocking/passive mechanism as follows
+        #self.locking_mechanism_state[i] <i -0.3: 
+          #(locked joint) 
+            #(set constraint, set zero torque)
+        #self.locking_mechanism_state[i] >=-0.3 and <=0.3: 
+          #(passive joint) 
+            #( no constraint, set zero torque)
+        #self.locking_mechanism_state[i] > 0.3 :
+          #(torque control on joint)
+            #( no constraint, keep current torque value as is)
+      # we engage the locking mechanism in the following manner at every point in time 
+        # step1: unlock all joints (if any are locked)
+        # step2: lock joints according to classifier output
+        # step3: adjust torques (zero out any torques for locked or passive joints)
+          
+    #### LOCK MECHANISM DESCRIPTION FOR CLASSIFIER (end) 
+     
+    # remove constraints if any exist  
+    for i in range(self.number_of_joints_urdf):  
+    #for i in range( len(constraintUniqueIdList) ):
+      #remove single constraint for joint i (if one exists) 
+      if self.constraintUniqueIdsList[i] is not None:
+        self._p.removeConstraint(userConstraintUniqueId=self.constraintUniqueIdsList[i], physicsClientId=self.physicsClientId)
+        self.constraintUniqueIdsList[i] = None
+    #TODO: lock joints according to classifier output
+    #this loop locks all of the arm's joints and adjusts torques #NOTE: p.createConstraint(parentLinkIndex=-1) corresponds constraint with base link
+    #for i in range(self.number_of_joints_urdf-1): #NOTE: LEAVE THIS LINE ALONE
+    for i in range(self.number_of_joints_urdf): 
+      #lock single joint(...if that is what NN decides)  
+      if (self.locking_mechanism_state[i] < -0.3): #locked joint
+        self.constraintUniqueIdsList[i] = self._p.createConstraint( parentBodyUniqueId=self.octopusBodyUniqueId, parentLinkIndex=i-1, childBodyUniqueId=self.octopusBodyUniqueId, childLinkIndex=i, jointType=self._p.JOINT_FIXED, jointAxis=[1,0,0], parentFramePosition= [0,0,1], childFramePosition=[0,0,-1], parentFrameOrientation=self._p.getJointInfo(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[15], childFrameOrientation=self._p.getQuaternionFromEuler(eulerAngles=[-self._p.getJointState(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[0],-0,-0]), physicsClientId=self.physicsClientId ) #locking constraint 
+        self.torques[i] = 0 #remove instantaneous torque on joint 
+      elif (self.locking_mechanism_state[i] >=-0.3 and self.locking_mechanism_state[i] <= 0.3 ): #passive joint
+        self.torques[i]=0 
+      elif (self.locking_mechanism_state[i] > 0.3): #torque
+        pass     
     
-    #TODO: unlock joints
     
     
-    #set torques 
-    self._p.setJointMotorControlArray(physicsClientId=self.physicsClientId, bodyUniqueId=self.octopusBodyUniqueId, jointIndices= list(range(self.number_of_torques_urdf)) , controlMode=self._p.TORQUE_CONTROL, forces=list( self.torques ) )
-    
-    #step simulation TODO: step 3 times?
-    self._p.stepSimulation(physicsClientId=self.physicsClientId)
-    
+    #NOTE: set torques and step through simulation
+    for i in range(self.number_of_simulation_steps_per_gym_step):
+      #set torques
+      self._p.setJointMotorControlArray(physicsClientId=self.physicsClientId, bodyUniqueId=self.octopusBodyUniqueId, jointIndices= list(range(self.number_of_torques_urdf)) , controlMode=self._p.TORQUE_CONTROL, forces=list( self.torques ) ) 
+      #step simulation
+      self._p.stepSimulation(physicsClientId=self.physicsClientId)
+      #print("Radius to goal: ", self.radius_to_goal, end='\n')
     
     self.time_stamp += self.time_step
     self.step_observations = self.get_states()
@@ -372,11 +428,12 @@ class OctopusEnv(gym.Env):
     
 
     #rewards
-    self.reward_for_reaching_goal = 1 if self.radius_to_goal <= self.radius_to_goal_epsilon else 0 # 1/abs(self.radius_to_goal**4) if self.radius_to_goal <= 2*self.radius_to_goal_epsilon else 0 #reward for reaching goal
-    self.reward_for_being_close_to_goal = 0# 1/(abs(0.05*self.radius_to_goal)**2)  #+ 1/(abs(np.clip(a=self.joint_states[self.ee_link_index+self.number_of_joints_urdf], a_min=1e-1, a_max=None) )) # + 1/abs(actions[self.ee_link_index]) # 1/abs(self.joint_states[self.ee_link_index+self.number_of_joints_urdf])) #reward low ee angular velocity #- (1/500)*sum(abs(self.torques)) # - (self.time_stamp)**2 #-electricity_cost #+1/(fractal_dimensionality_number)  
+    self.reward_for_reaching_goal = 100 if self.radius_to_goal <= self.radius_to_goal_epsilon else 0 # 1/abs(self.radius_to_goal**4) if self.radius_to_goal <= 2*self.radius_to_goal_epsilon else 0 #reward for reaching goal
+    self.reward_for_being_close_to_goal =  0 #-1/(abs(1*0.05*self.radius_to_goal)**2)  #+ 1/(abs(np.clip(a=self.joint_states[self.ee_link_index+self.number_of_joints_urdf], a_min=1e-1, a_max=None) )) # + 1/abs(actions[self.ee_link_index]) # 1/abs(self.joint_states[self.ee_link_index+self.number_of_joints_urdf])) #reward low ee angular velocity #- (1/500)*sum(abs(self.torques)) # - (self.time_stamp)**2 #-electricity_cost #+1/(fractal_dimensionality_number)  
     
     #costs
     self.num_joints_at_limit = 0
+    ####################TODO: add cost of transport to reward
     #self.joints_at_limit_array = np.logical_or(self.joints_and_links.joints_above_upper_limit_array, self.joints_and_links.joints_below_lower_limit_array) #MAKE THIS OBJECT IN JOINTS AND LINKS CLASS
     #self.num_joints_at_limit = np.count_nonzero(self.joints_at_limit_array)
     #self.joints_at_limit_cost = self.num_joints_at_limit * self.num_joints_at_limit
@@ -391,17 +448,17 @@ class OctopusEnv(gym.Env):
       #self.step_reward += self.reward_for_reaching_goal
       #self.reward += self.reward_for_reaching_goal
     self.step_reward = self.reward_for_being_close_to_goal + self.reward_for_reaching_goal  #+ self.joints_at_limit_cost
-    self.reward += self.step_reward
+    self.reward += self.step_reward #/ self.time_stamp #NOTE: test reward division with notion of time
     
     #stopping criteria
     self.done = True if self.radius_to_goal <= self.radius_to_goal_epsilon else self.done # update done criteria if ee is in epsilon ball  
-    if self.time_stamp >= 8:  #originally >=20
+    if self.time_stamp >= 20:  #originally >=20
       self.done=True
     if self.radius_to_goal <= self.radius_to_goal_epsilon: #within epsilon ball
       self.done=True
     return self.step_observations, self.step_reward, self.done, {}
 
-#### RENDER
+#### NOTE: RENDER
   def render(self, mode='human', close=False):
     if mode == "human":
       self.isRender = True
