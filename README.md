@@ -9,7 +9,7 @@ cd romans_pybullet_gym_envs
 pip install -e .
 ```
 ##URDF Files
-* URDF Files can be found here:
+* URDF Files can be found here (make sure to add them to your pybullet datapath):
 https://github.com/roman-aguilera/romans_urdf_files/tree/master/octopus_files/python_scripts_edit_urdf
 
 ## Environments
