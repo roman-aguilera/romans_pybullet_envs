@@ -8,6 +8,9 @@ git clone https://github.com/roman-aguilera/romans_pybullet_gym_envs.git
 cd romans_pybullet_gym_envs
 pip install -e .
 ```
+##URDF Files
+* URDF Files can be found here:
+https://github.com/roman-aguilera/romans_urdf_files/tree/master/octopus_files/python_scripts_edit_urdf
 
 ## Environments
 The exact environments that I created myself are:
