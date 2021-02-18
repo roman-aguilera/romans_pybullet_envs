@@ -10,13 +10,11 @@
 ###TODO: so far i have the last 3 joints unlocked, and they implement the torques
 '''
 ###TESTER
-import gym; import pybullet_envs; env_instance = gym.make('OctopusArmLockedJointsNUnlockedJoints2DBulletEnv-v0', render=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3);env_instance.reset(); env_instance.env._p.setRealTimeSimulation(1);
+import gym; import pybullet_envs; env_instance = gym.make('OctopusArmLockedJoints1stUnlockedJoints2DBulletEnv-v0', render=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3);env_instance.reset();env_instance.env._p.setRealTimeSimulation(1);
 
- 
-env_instance.step(env_instance.action_space.sample());
 
-###OPTIONAL
-env_instance.env._p.setRealTimeSimulation(1);
+
+import gym; import pybullet_envs; env_instance = gym.make('OctopusArmLockedJoints1stUnlockedJoints2DBulletEnv-v0', render=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3);env_instance.reset(); env_instance.step(env_instance.action_space.sample()); env_instance.env._p.setRealTimeSimulation(1);
 '''
 
 import gym, gym.spaces, gym.utils, gym.utils.seeding
@@ -199,14 +197,14 @@ class OctopusEnv(gym.Env):
           self.constraintUniqueIdsList[i]=None    
        
       #this loop locks all of the arm's joints
-      for i in range(self.number_of_joints_urdf): #TODO:check again to see if this unlock up to last joint
+      for i in range(self.number_of_joints_urdf):
          
         #lock single joint
         self.constraintUniqueIdsList[i] = self._p.createConstraint( parentBodyUniqueId=self.octopusBodyUniqueId, parentLinkIndex=i-1, childBodyUniqueId=self.octopusBodyUniqueId, childLinkIndex=i, jointType=self._p.JOINT_FIXED, jointAxis=[1,0,0], parentFramePosition= [0,0,1], childFramePosition=[0,0,-1], parentFrameOrientation=self._p.getJointInfo(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[15], childFrameOrientation=self._p.getQuaternionFromEuler(eulerAngles=[-self._p.getJointState(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[0],-0,-0]), physicsClientId=self.physicsClientId )
          
-      #unlock last 3 joints
-      self.masks_unlock_as_list_of_nparrays[3][-1]
-      for i in range(3):
+      #unlock first joints
+      print("hello",self.masks_unlock_as_list_of_nparrays[3][-1])
+      for i in range(self.number_of_joints_urdf-1, self.number_of_joints_urdf):
         if self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] is not None:
           self._p.removeConstraint( userConstraintUniqueId=self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] , physicsClientId=self.physicsClientId  )
           self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i]=None 
@@ -399,18 +397,19 @@ class OctopusEnv(gym.Env):
         self.constraintUniqueIdsList[i]=None
 
     #this loop locks all of the arm's joints
-    for i in range(self.number_of_joints_urdf-1):         
+    for i in range(self.number_of_joints_urdf):         
       #lock single joint
       self.constraintUniqueIdsList[i] = self._p.createConstraint( parentBodyUniqueId=self.octopusBodyUniqueId, parentLinkIndex=i-1, childBodyUniqueId=self.octopusBodyUniqueId, childLinkIndex=i, jointType=self._p.JOINT_FIXED, jointAxis=[1,0,0], parentFramePosition= [0,0,1], childFramePosition=[0,0,-1], parentFrameOrientation=self._p.getJointInfo(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[15], childFrameOrientation=self._p.getQuaternionFromEuler(eulerAngles=[-self._p.getJointState(bodyUniqueId=self.octopusBodyUniqueId, jointIndex=i, physicsClientId=self.physicsClientId)[0],-0,-0]), physicsClientId=self.physicsClientId )
     
     
     #unlock desired joints
     unlock_decision = actions['unlocked_joints_combination'] #is this an int
-     
+    
+    print(self.masks_unlock_as_list_of_nparrays[1][-1]) 
     self.masks_unlock_as_list_of_nparrays[self.number_of_free_joints][-1] #three unlocked joints #last 3 unlocked
     unlock_decision = actions['unlocked_joints_combination']
      
-    for i in range(3):
+    for i in range(self.number_of_joints_urdf-1, self.number_of_joints_urdf): #for i in range(3):
       if self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] is not None:
         self._p.removeConstraint( userConstraintUniqueId=self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i] , physicsClientId=self.physicsClientId  )
         self.constraintUniqueIdsList[self.number_of_joints_urdf-1-i]=None

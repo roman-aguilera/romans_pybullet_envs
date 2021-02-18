@@ -45,9 +45,9 @@ class OctopusEnv(gym.Env):
   
   #### NOTE: INIT
   def __init__(self, 
-      render=False, 
-      number_of_links_urdf=16, 
-      number_of_joints_urdf=16, 
+      render=True, 
+      number_of_links_urdf=8, 
+      number_of_joints_urdf=8, 
       number_of_free_joints=3, 
       number_of_simulation_steps_per_gym_step=50, 
       radius_to_goal_epsilon=5 ): #def __init__(self, render=False):
@@ -152,6 +152,8 @@ class OctopusEnv(gym.Env):
       self.model_urdf = "romans_urdf_files/octopus_files/python_scripts_edit_urdf/octopus_generated_"+str(self.number_of_links_urdf)+"_links.urdf"
       #load URDF into pybullet physics simulator
       self.octopusBodyUniqueId = self._p.loadURDF( fileName=os.path.join(pybullet_data.getDataPath(), self.model_urdf), flags=self._p.URDF_USE_SELF_COLLISION | self._p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
+      print("Loading urdf from: ", os.path.join(pybullet_data.getDataPath(), self.model_urdf))
+      
       #turn off all motors so that joints are not stiff for the rest of the simulation
       self._p.setJointMotorControlArray(bodyUniqueId=self.octopusBodyUniqueId, jointIndices=list(range(self.number_of_joints_urdf)), controlMode = self._p.POSITION_CONTROL, positionGains=[0.1]*self.number_of_links_urdf, velocityGains=[0.1]*self.number_of_links_urdf, forces=[0]*self.number_of_links_urdf) 
      

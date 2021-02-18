@@ -27,10 +27,17 @@ register(
     reward_threshold=20000.0*1000,
 )
 
-#env_instance = gym.make('OctopusArmLockedJointsNUnlockedJoints2DBulletEnv-v0', renders=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3)
+#env_instance = gym.make('OctopusArmLockedJointsNUnlockedJoints2DBulletEnv-v0', render=True, number_of_links_urdf=8, number_of_joints_urdf=8, number_of_free_joints=3)
 register(
-    id='OctopusArmLockedJoints2DBulletEnv-v0',
+    id='OctopusArmLockedJointsNUnlockedJoints2DBulletEnv-v0',
     entry_point='pybullet_envs.octopus_lockedjoints_nUnlockedJoints_env:OctopusEnv', # octopus_lockedjoints_nUnlockedJoints_env.py
+    max_episode_steps=1000*100,
+    reward_threshold=20000.0*1000,
+)
+
+register(
+    id='OctopusArmLockedJoints1stUnlockedJoints2DBulletEnv-v0',
+    entry_point='pybullet_envs.octopus_lockedjoints_1stUnlockedJoint_env:OctopusEnv', # octopus_lockedjoints_nUnlockedJoints_env.py
     max_episode_steps=1000*100,
     reward_threshold=20000.0*1000,
 )

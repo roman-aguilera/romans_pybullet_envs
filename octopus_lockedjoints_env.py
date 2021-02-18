@@ -81,7 +81,7 @@ class OctopusEnv(gym.Env):
 
     #creates list of masks for choosing whether unlocked joint is actuated or underactuated (torque 0) #modified from https://code.activestate.com/recipes/425303-generating-all-strings-of-some-length-of-a-given-a/
     def allstrings2(alphabet, length):
-    """Find the list of all strings of 'alphabet' of length 'length'"""
+      '''Find the list of all strings of 'alphabet' of length 'length' '''
       c = []
       for i in range(length):
         c = [[x]+y for x in alphabet for y in c or [[]]]
